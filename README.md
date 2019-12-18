@@ -26,6 +26,6 @@
 
 ### UI 및 설명
 ---
-![full1](./img/full1.png)
-![full2](./img/full2.png)
-![full3](./img/full3.png)
+![full1](./img/full1.PNG)
+![full2](./img/full2.PNG)
+![full3](./img/full3.PNG)
