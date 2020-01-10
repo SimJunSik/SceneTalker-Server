@@ -31,6 +31,17 @@ class Post(models.Model):
         ordering = ["-created_at"]
 
     @property
+    def user_profile_image(self):
+        try :
+            return self.author.profile_image.url
+        except :
+            return None
+
+    @property
+    def post_drama_title(self):
+        return self.feed.drama.title
+
+    @property
     def like_counts(self):
         return self.likes.all().count()
 
@@ -62,7 +73,9 @@ class PostSerializer(serializers.ModelSerializer):
             'comment_counts',
             'is_mine',
             'is_liked_by_me',
-            'author_name'
+            'author_name',
+            'post_drama_title',
+            'user_profile_image',
         )
 
     def get_is_mine(self, obj):
@@ -90,6 +103,17 @@ class Comment(models.Model):
     def __str__(self):
         return '{} - {}'.format(self.post.content, self.content)
 
+    @property
+    def user_profile_image(self):
+        try :
+            return self.author.profile_image.url
+        except :
+            return None
+    
+    @property
+    def feed_id(self) :
+        return self.post.feed.id
+
 
 class CommentSerializer(serializers.ModelSerializer):
     is_mine = serializers.SerializerMethodField()
@@ -97,7 +121,18 @@ class CommentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Comment
-        fields = '__all__'
+        fields = (
+            'id',
+            'post',
+            'author',
+            'content',
+            'created_at',
+            'updated_at',
+            'feed_id',
+            'is_mine',
+            'author_name',
+            'user_profile_image',
+        )
 
     def get_is_mine(self, obj):
         request_user = self.context['request'].user

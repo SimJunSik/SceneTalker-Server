@@ -5,7 +5,7 @@ from rest_framework import status
 from django.contrib.auth import get_user_model
 from rest_framework.authtoken.models import Token
 
-from user.serializers import UserSerializer
+from user.serializers import UserSerializer, UserRecentSearchesSerializer
 from drama.models import *
 from feed.models import PostSerializer
 
@@ -38,7 +38,7 @@ class GetUserByToken(APIView):
     def post(self, request):
 
         """
-            넘겨준 Token에 해당하는 User의 Token.key 와 User.id, Username, Email을 넘겨줌
+            넘겨준 Token에 해당하는 User의 pk, Username, Email을 넘겨줌
 
             # Body
                 - token
@@ -46,10 +46,8 @@ class GetUserByToken(APIView):
 
         token = Token.objects.get(key=request.data['token'])
         user = User.objects.get(id=token.user_id)
-        return Response({'token': token.key, 
-                        'user_id': user.id, 
-                        'username' : user.username, 
-                        'email' : user.email})
+        serializer = UserSerializer(user)
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
 
 class ToggleDramaBookmark(APIView) :
 
@@ -74,12 +72,20 @@ class ToggleDramaBookmark(APIView) :
 
         if drama in user.drama_bookmark.all() :
             user.drama_bookmark.remove(drama)
+            result = {
+                "result" : "OK",
+                "description" : "remove"
+            }
         else :
             user.drama_bookmark.add(drama)
+            result = {
+                "result" : "OK",
+                "description" : "add"
+            }
 
         user.save()
 
-        return Response({"description" : "OK"},status=status.HTTP_200_OK)
+        return Response(result,status=status.HTTP_200_OK)
 
 class GetRealTimeUserBestDrama(APIView) :
 
@@ -117,7 +123,7 @@ class GetUserBookmarkDramaList(APIView) :
 
         user_drama_bookmarks = user.drama_bookmark.all()
 
-        serializer = BookmarkDramaSerializer(user_drama_bookmarks, many=True)
+        serializer = DramaSerializer(user_drama_bookmarks, many=True, context={'request': request})
 
         print(user_drama_bookmarks)
 
@@ -176,14 +182,20 @@ class ChangeUsername(APIView) :
 
         user = request.user
 
-        new_username = request.data.get("username")
+        new_username = request.data
 
         if new_username in list(User.objects.values_list("username", flat=True)) :
-            return Response(status=status.HTTP_304_NOT_MODIFIED)
+            result = {
+                "result" : "duplicated"
+            }
+            return Response(result, status=status.HTTP_304_NOT_MODIFIED)
         else :
             user.username = new_username
             user.save()
-            return Response(status=status.HTTP_200_OK)
+            result = {
+                "result" : "ok"
+            }
+            return Response(result, status=status.HTTP_200_OK)
 
 class UnRegistrationUser(APIView) :
 
@@ -217,7 +229,7 @@ class CheckUsernameIsDuplicated(APIView) :
                 - 중복 X : {"result" : "ok"}
         """
 
-        username = request.data.get("username")
+        username = request.data
 
         if username in list(User.objects.values_list("username", flat=True)) :
             return Response({"result" : "duplicated"})
@@ -246,4 +258,27 @@ class PutUserProfileImage(APIView) :
         user.profile_image = file_obj
         user.save()
 
-        return Response(status=status.HTTP_200_OK)
+        return Response({"result" : "ok"},status=status.HTTP_200_OK)
+
+class UserRecentSearchesAPIView(APIView) :
+
+    def get(self, request, format=None) :
+
+        user = request.user
+
+        serializer = UserRecentSearchesSerializer(user)
+
+        return Response(data=serializer.data ,status=status.HTTP_200_OK)
+
+    def delete(self, request, format=None) :
+
+        user = request.user
+
+        search_word = request.data.get("search_word")
+
+        if search_word == '' :
+            user.recent_searches.clear()
+
+        user.recent_searches.remove(search_word)
+
+        return Response({"result" : "OK"}, status=status.HTTP_200_OK)
